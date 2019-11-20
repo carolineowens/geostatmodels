@@ -1,0 +1,69 @@
+---
+title: "covariances"
+author: Caroline Owens
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(convoSPAT)
+library(tidyverse)
+library(geoR)
+library(RandomFields)
+setwd("G:/Shared drives/PSTAT-Geospatial_Model_Selection")
+```
+
+##Selecting a covariance structure for the model
+Sophia's work
+
+```{r Getting data and setting up the model}
+#Read in cleaned data for SJ basin
+sjdata <- data.frame(read.csv("G:/Shared drives/PSTAT-Geospatial_Model_Selection/Data/SJrb_cleaned.csv"))
+
+## Conclusions - Go with 3 optimal Mixing clusters
+xc <- data.frame(sjdata$utm.x1,sjdata$utm.x2)
+final <- kmeans(xc, 3, nstart = 25)
+print(final)
+xymix <- final$centers
+
+xy <- sjdata[,c(12,13)]
+spdf <- SpatialPointsDataFrame(coords = xy, data = sjdata,
+                               proj4string = CRS("+proj=utm +zone=10 +datum=WGS84"))
+NS1 <-NSconvo_fit(sp.SPDF = spdf,
+                  cov.model = "exponential", 
+                  mc.locations = xymix, 
+                  fit.radius = 13000, 
+                  mean.model = spdf$water.content ~ spdf$utm.x1 + spdf$utm.x2)
+
+###The rest of this code is from Sophia/Rachel's but I can't get the prediction to run
+
+pred <- predict.NSconvo(NS1, pred.coords = c(spdf$utm.x1, spdf$utm.x2), pred.covariates = c(spdf$utm.x1, spdf$utm.x2))
+pred <- predict.NSconvo(NS1, pred.coords = sjdata[,c(12,13)])
+
+```
+
+
+
+```{r Trying out different covariance structures}
+
+structures <- c("exponential", "matern", "cauchy", "circular", "cubic", "gaussian", "spherical", "wave")
+
+predictions <- c()
+
+for (i in 1:length(structures)){
+  model <-NSconvo_fit(sp.SPDF = spdf,
+                  cov.model = structures[i], 
+                  mc.locations = xymix, 
+                  fit.radius = 13000, 
+                  mean.model = spdf$water.content ~ spdf$utm.x1 + spdf$utm.x2)
+  predictions[i,] <- predict.NSconvo(model, ...)
+}
+
+```
+
+
+
+```{r Comparing the outcomes of each model}
+
+```
+
