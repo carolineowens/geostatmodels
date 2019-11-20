@@ -33,12 +33,12 @@ NS1 <-NSconvo_fit(sp.SPDF = spdf,
                   cov.model = "exponential", 
                   mc.locations = xymix, 
                   fit.radius = 13000, 
-                  mean.model = spdf$water.content ~ spdf$utm.x1 + spdf$utm.x2)
+                  mean.model = spdf$water.content ~ spdf$elev + spdf$aspect)
 
-###The rest of this code is from Sophia/Rachel's but I can't get the prediction to run
-
-pred <- predict.NSconvo(NS1, pred.coords = c(spdf$utm.x1, spdf$utm.x2), pred.covariates = c(spdf$utm.x1, spdf$utm.x2))
-pred <- predict.NSconvo(NS1, pred.coords = sjdata[,c(12,13)])
+pred <- predict.NSconvo(NS1, 
+                        pred.coords = as.matrix(sjdata[,12:13]), 
+                        pred.covariates = as.matrix(sjdata[,c(8,17)])
+                        )
 
 ```
 
@@ -46,24 +46,45 @@ pred <- predict.NSconvo(NS1, pred.coords = sjdata[,c(12,13)])
 
 ```{r Trying out different covariance structures}
 
+##########################################################################
+### Choose the covariance structures to evaluate #########################
+##########################################################################
+
 structures <- c("exponential", "matern", "cauchy", "circular", "cubic", "gaussian", "spherical", "wave")
 
-predictions <- c()
+##########################################################################
+### Initialize table for results #########################################
+##########################################################################
+
+results <- matrix(ncol = 3, nrow = length(structures))
+colnames(results) <- c("CRPS", "MSPE", "pMSDR")
+rownames(results) <- structures
+
+##########################################################################
+### Calculate evaluation criteria for each covariance structure ##########
+##########################################################################
 
 for (i in 1:length(structures)){
-  model <-NSconvo_fit(sp.SPDF = spdf,
+  #build the model with the specified covariance structure
+  model <-NSconvo_fit(sp.SPDF = spdf, #this should be with simulated/'training' data?
                   cov.model = structures[i], 
                   mc.locations = xymix, 
                   fit.radius = 13000, 
-                  mean.model = spdf$water.content ~ spdf$utm.x1 + spdf$utm.x2)
-  predictions[i,] <- predict.NSconvo(model, ...)
+                  mean.model = spdf$water.content ~ spdf$elev + spdf$aspect)
+  
+  #still using 'training' data, use the model to make predictions for yhats (water content)
+  pred <- predict.NSconvo(model, 
+                        pred.coords = as.matrix(sjdata[,12:13]), #coords of pred sites
+                        pred.covariates = as.matrix(sjdata[,c(8,17)]) #elev, aspect
+                        )
+  #using holdout/'testing' data, evaluate predictions and store results in table
+  evals <- evaluate_CV(sjdata[,10], pred$pred.means, pred$pred.SDs)
+  
+  results[i,1] <- evals$CRPS
+  results[i,2] <- evals$MSPE
+  results[i,3] <- evals$pMSDR
+  
+  
 }
 
 ```
-
-
-
-```{r Comparing the outcomes of each model}
-
-```
-
